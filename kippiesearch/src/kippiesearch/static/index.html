@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KippieSearch</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>🐔</text></svg>" />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="brand">
+          <div class="logo" aria-hidden="true">🐔</div>
+          <div>
+            <h1>KippieSearch</h1>
+            <p class="tag">Lokale semantic search · NAS + school · blijft op je Pi</p>
+          </div>
+        </div>
+        <nav>
+          <button type="button" data-view="search" class="active">Zoeken</button>
+          <button type="button" data-view="status">Status</button>
+        </nav>
+      </header>
+
+      <section id="search-view">
+        <form id="search-form" class="searchbox">
+          <input id="q" type="search" placeholder="Zoek in je bestanden…" autocomplete="off" autofocus />
+          <button class="primary" type="submit">Zoek</button>
+        </form>
+        <div class="filters">
+          <select id="source">
+            <option value="">Alle bronnen</option>
+            <option value="nas">NAS</option>
+            <option value="school">it's learning</option>
+          </select>
+          <select id="file_type">
+            <option value="">Alle types</option>
+            <option value="pdf">PDF</option>
+            <option value="docx">DOCX</option>
+            <option value="pptx">PPTX</option>
+            <option value="text">Tekst</option>
+            <option value="code">Code</option>
+          </select>
+          <label>van <input id="after" type="date" /></label>
+          <label>tot <input id="before" type="date" /></label>
+          <label>top_k <input id="top_k" type="number" min="1" max="50" value="8" /></label>
+        </div>
+        <div id="results" class="results">
+          <p class="hint">Typ een vraag of een paar trefwoorden. Resultaten blijven lokaal.</p>
+        </div>
+      </section>
+
+      <section id="status-view" class="hidden"></section>
+
+      <footer>
+        Privacy-first · embeddings op dit apparaat · MCP op <code>/mcp</code>
+      </footer>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
