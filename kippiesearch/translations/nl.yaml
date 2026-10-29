@@ -7,7 +7,7 @@ configuration:
     description: Bearer-token voor LAN-toegang tot API en MCP. Home Assistant ingress blijft open. Leeg = geen auth (niet aanbevolen).
   nas_roots:
     name: NAS-/share-mappen
-    description: Paden van Home Assistant netwerkopslag. Na het toevoegen van share "home" (Instellingen → Systeem → Opslag, protocol Share) staat die onder /share/<naam>, bijvoorbeeld /share/home.
+    description: Expliciete paden om te indexeren. Leeg = niets (aanbevolen). Niet heel /share zetten — daar staat app-data van andere add-ons. Na netwerkopslag "home" is het pad /share/home.
   nas_smb_enabled:
     name: SMB-fallback inschakelen
     description: Synology-shares rechtstreeks lezen als HA-mounts leeg zijn. Alleen lezen.
@@ -64,8 +64,30 @@ configuration:
     name: Pauze tussen bestanden (s)
   exclude_globs:
     name: Uitsluit-globs
+    description: Extra paden om over te slaan. Plugins, cache, node_modules, minified JS en vergelijkbare app-data worden sowieso overgeslagen.
   ocr_enabled:
     name: OCR voor afbeeldingen
     description: Standaard uit (RAM). Afbeeldingen worden overgeslagen.
+  chat_enabled:
+    name: RAG-chat
+    description: Lokaal GGUF-model (llama-cpp-python) achter de chat-UI en MCP-tool ask. Uit = alleen zoeken.
+  chat_model:
+    name: Chatmodel
+    description: Preset gemma3-1b (default) of gemma3-4b, of Hugging Face repo:bestand.gguf. Eerste keer download naar /data, daarna offline.
+  chat_n_ctx:
+    name: Chat-context (tokens)
+    description: Kleiner = minder RAM. 2048 is een goede default op Pi 5.
+  chat_n_threads:
+    name: Chat-CPU-threads
+    description: Laat cores over voor Home Assistant. 2 is veilig op Pi 5.
+  chat_max_tokens:
+    name: Max. antwoordtokens
+  chat_temperature:
+    name: Temperatuur
+  chat_idle_unload_minutes:
+    name: Model unloaden na idle (minuten)
+    description: 0 = in RAM houden. 15 spaart geheugen naast Home Assistant.
+  chat_top_k:
+    name: RAG-treffers per vraag
 network:
-  8765/tcp: Web-UI, REST-API en MCP (/mcp)
+  8765/tcp: Web-UI, REST-API, chat (SSE) en MCP (/mcp)

@@ -114,6 +114,7 @@ class OnnxGemmaEmbedder:
         self.model_dir = Path(model_dir)
         self._session = None
         self._tokenizer = None
+        self._inputs: list = []
         self._input_names: list[str] = []
         self._output_name = "sentence_embedding"
         self._lock = threading.Lock()
@@ -173,12 +174,18 @@ class OnnxGemmaEmbedder:
             sess_options=options,
             providers=["CPUExecutionProvider"],
         )
-        self._input_names = [inp.name for inp in self._session.get_inputs()]
+        self._inputs = list(self._session.get_inputs())
+        self._input_names = [inp.name for inp in self._inputs]
         outputs = [out.name for out in self._session.get_outputs()]
         if "sentence_embedding" in outputs:
             self._output_name = "sentence_embedding"
         else:
             self._output_name = outputs[0]
+        log.info(
+            "onnx_inputs",
+            names=self._input_names,
+            output=self._output_name,
+        )
 
         tokenizer_path = self.model_dir / "tokenizer.json"
         if not tokenizer_path.is_file():
@@ -214,18 +221,7 @@ class OnnxGemmaEmbedder:
             attention = np.vstack(
                 [np.array(enc.attention_mask, dtype=np.int64) for enc in encodings]
             )
-            feed: dict[str, np.ndarray] = {}
-            for name in self._input_names:
-                lowered = name.lower()
-                if "mask" in lowered:
-                    feed[name] = attention
-                elif "position" in lowered:
-                    feed[name] = np.broadcast_to(
-                        np.arange(input_ids.shape[1], dtype=np.int64),
-                        input_ids.shape,
-                    ).copy()
-                elif lowered in {"input_ids", "inputs", "input_id"} or "input" in lowered:
-                    feed[name] = input_ids
+            feed = build_onnx_feed(self._inputs, input_ids, attention)
             outputs = self._session.run([self._output_name], feed)[0]
         vectors = np.asarray(outputs)
         if vectors.ndim == 3:
@@ -235,6 +231,71 @@ class OnnxGemmaEmbedder:
             counts = np.maximum(mask.sum(axis=1), 1)
             vectors = summed / counts
         return _truncate_mrl(vectors, self.dim)
+
+
+def _onnx_numpy_dtype(onnx_type: str | None) -> np.dtype:
+    mapping = {
+        "tensor(float)": np.float32,
+        "tensor(float16)": np.float16,
+        "tensor(double)": np.float64,
+        "tensor(int64)": np.int64,
+        "tensor(int32)": np.int32,
+        "tensor(bool)": np.bool_,
+    }
+    return mapping.get(onnx_type or "", np.float32)
+
+
+def dummy_feature_array(inp) -> np.ndarray:
+    """Lege multimodal-input: EmbeddingGemma 2 text-graph eist image/video/audio.
+
+    De q4-export (`onnx/model_q4.onnx`) is de text-encoder, maar de graph heeft
+    nog steeds `image_features` / `video_features` / `audio_features` van vorm
+    `[num_*_tokens, 512]`. FastEmbed en Transformers.js voeren een 0-rij tensor
+    in; dat is text-only zonder vision/audio-encoders te laden.
+    """
+    dtype = _onnx_numpy_dtype(getattr(inp, "type", None))
+    raw_shape = list(getattr(inp, "shape", None) or [])
+    shape: list[int] = []
+    for i, dim in enumerate(raw_shape):
+        if isinstance(dim, int) and dim > 0:
+            shape.append(dim)
+        elif i == 0:
+            shape.append(0)
+        else:
+            shape.append(512)
+    if not shape:
+        shape = [0, 512]
+    if len(shape) == 1:
+        shape = [0, int(shape[0] or 512)]
+    return np.zeros(tuple(shape), dtype=dtype)
+
+
+def build_onnx_feed(
+    inputs,
+    input_ids: np.ndarray,
+    attention: np.ndarray,
+) -> dict[str, np.ndarray]:
+    """Vul alle ONNX-inputs: tokens + lege multimodal-features indien aanwezig."""
+    feed: dict[str, np.ndarray] = {}
+    for inp in inputs:
+        name = inp.name
+        lowered = name.lower()
+        if lowered in {"input_ids", "inputs", "input_id"}:
+            feed[name] = input_ids
+        elif "mask" in lowered:
+            feed[name] = attention
+        elif "position" in lowered:
+            feed[name] = np.broadcast_to(
+                np.arange(input_ids.shape[1], dtype=np.int64),
+                input_ids.shape,
+            ).copy()
+        elif lowered.endswith("_features") or "image" in lowered or "video" in lowered or "audio" in lowered:
+            feed[name] = dummy_feature_array(inp)
+        elif lowered in {"input_ids"} or lowered.startswith("input"):
+            feed[name] = input_ids
+        else:
+            feed[name] = dummy_feature_array(inp)
+    return feed
 
 
 def create_embedder(settings) -> Embedder:

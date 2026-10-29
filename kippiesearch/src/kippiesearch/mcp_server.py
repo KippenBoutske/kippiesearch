@@ -7,6 +7,7 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 
+from kippiesearch.chat import ChatEngine
 from kippiesearch.config import Settings
 from kippiesearch.extract import extract_text
 from kippiesearch.logging_setup import get_logger
@@ -22,15 +23,17 @@ def build_mcp(
     settings: Settings,
     store: VectorStore,
     searcher: SearchService,
+    chat: ChatEngine | None = None,
 ) -> MCPServer:
     mcp = MCPServer(
         "KippieSearch",
         instructions=(
-            "Lokale semantic search over NAS- en schoolbestanden. "
-            "Gebruik search voor vragen, list_sources voor overzicht, "
-            "get_file_content voor de tekst van een geïndexeerd pad."
+            "Lokale semantic search en RAG-chat over NAS- en schoolbestanden. "
+            "Gebruik search voor treffers, ask voor een antwoord met bronnen, "
+            "list_sources voor overzicht, get_file_content voor de tekst van "
+            "een geïndexeerd pad."
         ),
-        version="0.1.2",
+        version="0.2.0",
     )
 
     @mcp.tool()
@@ -54,6 +57,35 @@ def build_mcp(
         ]
 
     @mcp.tool()
+    def ask(
+        question: str,
+        top_k: int = 6,
+        source: str | None = None,
+        file_type: str | None = None,
+    ) -> dict[str, Any]:
+        """Beantwoord een vraag met RAG: retrieval + lokaal chatmodel, plus bronnen."""
+        if chat is None:
+            return {"error": "chat niet beschikbaar", "answer": "", "sources": []}
+        result = chat.ask(
+            question, top_k=top_k, source=source, file_type=file_type
+        )
+        return {
+            "answer": result.get("answer") or "",
+            "sources": [
+                {
+                    "n": src.get("n"),
+                    "path": src.get("path"),
+                    "filename": src.get("filename"),
+                    "source": src.get("source"),
+                    "snippet": src.get("snippet"),
+                    "score": src.get("score"),
+                }
+                for src in (result.get("sources") or [])
+            ],
+            "error": result.get("error") or "",
+        }
+
+    @mcp.tool()
     def list_sources() -> dict[str, Any]:
         """Toon bronnen, aantal bestanden/chunks en laatste sync/index."""
         stats = store.stats()
@@ -67,6 +99,8 @@ def build_mcp(
             "nas_roots": settings.nas_roots,
             "smb_enabled": settings.nas_smb_enabled,
             "itslearning_enabled": settings.itslearning_enabled,
+            "chat_enabled": settings.chat_enabled,
+            "chat_model": settings.chat_model,
         }
 
     @mcp.tool()

@@ -15,6 +15,51 @@ from kippiesearch.logging_setup import get_logger
 
 log = get_logger("sources")
 
+# Altijd overgeslagen, ook als de gebruiker /share als root zet (HA-appdata).
+SKIP_DIR_NAMES = frozenset(
+    {
+        ".git",
+        "node_modules",
+        "cache",
+        "caches",
+        "plugins",
+        "@eaDir",
+        "#recycle",
+        "__pycache__",
+        ".venv",
+        "venv",
+        "dist",
+        "build",
+        ".cache",
+        ".npm",
+        "jellyfin",
+        "speech-to-phrase",
+        "hassio_db",
+        "addon_configs",
+    }
+)
+SKIP_FILE_GLOBS = (
+    "*.min.js",
+    "*.min.css",
+    "*.min.json",
+    "*.map",
+    "*.bundle.js",
+    "*.umd.js",
+    "*.dart.js",
+    "*-bundle.js",
+    "*.wasm",
+    "*.pyc",
+    "*.iso",
+    "*.mkv",
+    "*.mp4",
+    "*.mp3",
+    "*.tmp",
+    ".DS_Store",
+    "Thumbs.db",
+    "package-lock.json",
+    "yarn.lock",
+)
+
 
 @dataclass(frozen=True)
 class FileRef:
@@ -26,10 +71,11 @@ class FileRef:
     origin: str  # local | smb | school
 
 
-def _excluded(rel: str, patterns: list[str]) -> bool:
-    posix = rel.replace("\\", "/")
+def _matches_any(posix: str, filename: str, patterns: list[str] | tuple[str, ...]) -> bool:
     for pattern in patterns:
-        if fnmatch.fnmatch(posix, pattern) or fnmatch.fnmatch(Path(posix).name, pattern):
+        if not pattern:
+            continue
+        if fnmatch.fnmatch(posix, pattern) or fnmatch.fnmatch(filename, pattern):
             return True
         parts = PurePosixPath(posix).parts
         for i in range(len(parts)):
@@ -37,6 +83,27 @@ def _excluded(rel: str, patterns: list[str]) -> bool:
             if fnmatch.fnmatch(prefix, pattern.rstrip("/**")):
                 return True
     return False
+
+
+def path_is_excluded(rel: str, extra_patterns: list[str] | None = None) -> bool:
+    """Skip app-data, caches, plugins en gebundelde/minified JS."""
+    posix = (rel or "").replace("\\", "/").lstrip("./")
+    if not posix:
+        return False
+    parts = PurePosixPath(posix).parts
+    if any(part in SKIP_DIR_NAMES for part in parts):
+        return True
+    filename = parts[-1] if parts else posix
+    lowered = filename.lower()
+    if _matches_any(posix, lowered, SKIP_FILE_GLOBS):
+        return True
+    if extra_patterns and _matches_any(posix, filename, extra_patterns):
+        return True
+    return False
+
+
+def _excluded(rel: str, patterns: list[str]) -> bool:
+    return path_is_excluded(rel, extra_patterns=patterns)
 
 
 def sha256_file(path: Path, limit: int | None = None) -> str:
@@ -75,15 +142,16 @@ def iter_local_files(settings: Settings) -> Iterator[FileRef]:
             dirnames[:] = [
                 name
                 for name in dirnames
-                if not _excluded(
+                if name not in SKIP_DIR_NAMES
+                and not path_is_excluded(
                     str(Path(rel_dir) / name).replace("\\", "/"),
-                    settings.exclude_globs,
+                    extra_patterns=settings.exclude_globs,
                 )
             ]
             for name in filenames:
                 full = Path(dirpath) / name
                 rel = str(full.relative_to(root)).replace("\\", "/")
-                if _excluded(rel, settings.exclude_globs):
+                if path_is_excluded(rel, extra_patterns=settings.exclude_globs):
                     continue
                 if not is_supported(full, ocr_enabled=settings.ocr_enabled):
                     continue

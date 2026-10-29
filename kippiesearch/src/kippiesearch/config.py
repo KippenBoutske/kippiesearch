@@ -32,8 +32,9 @@ class Settings(BaseModel):
     api_token: str = ""
     auth_disabled: bool = False
 
-    # NAS via HA netwerkopslag (voorkeur) en/of SMB-fallback
-    nas_roots: list[str] = Field(default_factory=lambda: ["/share", "/media"])
+    # NAS via HA netwerkopslag — leeg tot de gebruiker een expliciet pad zet.
+    # Heel /share is HA-appdata (Jellyfin, speech-to-phrase, …), geen documentenmap.
+    nas_roots: list[str] = Field(default_factory=list)
     nas_smb_enabled: bool = False
     nas_smb_host: str = ""
     nas_smb_shares: list[str] = Field(default_factory=list)
@@ -67,6 +68,9 @@ class Settings(BaseModel):
         default_factory=lambda: [
             "**/.git/**",
             "**/node_modules/**",
+            "**/cache/**",
+            "**/caches/**",
+            "**/plugins/**",
             "**/.DS_Store",
             "**/Thumbs.db",
             "**/*.tmp",
@@ -74,6 +78,13 @@ class Settings(BaseModel):
             "**/*.mkv",
             "**/*.mp4",
             "**/*.mp3",
+            "**/*.min.js",
+            "**/*.min.css",
+            "**/*.map",
+            "**/*.bundle.js",
+            "**/*.umd.js",
+            "**/*.dart.js",
+            "**/*.wasm",
             "**/@eaDir/**",
             "**/#recycle/**",
         ]
@@ -83,6 +94,16 @@ class Settings(BaseModel):
     rescan_hours: float = 6.0
     itslearning_cron: str = "0 3 * * *"
     nas_cron: str = "0 */6 * * *"
+
+    # RAG-chat — lokaal GGUF via llama-cpp-python (in-process, lazy load)
+    chat_enabled: bool = True
+    chat_model: str = "gemma3-1b"  # gemma3-1b | gemma3-4b | repo:file.gguf | mock
+    chat_n_ctx: int = 2048
+    chat_n_threads: int = 2
+    chat_max_tokens: int = 512
+    chat_temperature: float = 0.3
+    chat_idle_unload_minutes: float = 15.0
+    chat_top_k: int = 6
 
     @field_validator(
         "nas_roots",
@@ -121,6 +142,15 @@ class Settings(BaseModel):
 
     def require_auth(self) -> bool:
         return bool(self.api_token) and not self.auth_disabled
+
+    def nas_roots_skip_reason(self) -> str:
+        if self.nas_roots:
+            return ""
+        return (
+            "Geen nas_roots: heel /share is Home Assistant-appdata "
+            "(niet je documenten). Zet het pad van je netwerkopslag, "
+            "bijvoorbeeld /share/<naam>."
+        )
 
     def nas_smb_ready(self) -> bool:
         return bool(
@@ -202,6 +232,14 @@ def _env_overrides() -> dict[str, Any]:
         "KIPPIESEARCH_THROTTLE_S": "throttle_s",
         "KIPPIESEARCH_EXCLUDE_GLOBS": "exclude_globs",
         "KIPPIESEARCH_AUTH_DISABLED": "auth_disabled",
+        "KIPPIESEARCH_CHAT_ENABLED": "chat_enabled",
+        "KIPPIESEARCH_CHAT_MODEL": "chat_model",
+        "KIPPIESEARCH_CHAT_N_CTX": "chat_n_ctx",
+        "KIPPIESEARCH_CHAT_N_THREADS": "chat_n_threads",
+        "KIPPIESEARCH_CHAT_MAX_TOKENS": "chat_max_tokens",
+        "KIPPIESEARCH_CHAT_TEMPERATURE": "chat_temperature",
+        "KIPPIESEARCH_CHAT_IDLE_UNLOAD_MINUTES": "chat_idle_unload_minutes",
+        "KIPPIESEARCH_CHAT_TOP_K": "chat_top_k",
     }
     truthy = {"1", "true", "yes", "on"}
     bool_fields = {
@@ -209,9 +247,19 @@ def _env_overrides() -> dict[str, Any]:
         "itslearning_enabled",
         "ocr_enabled",
         "auth_disabled",
+        "chat_enabled",
     }
-    int_fields = {"port", "embedding_dim", "batch_size", "onnx_threads"}
-    float_fields = {"max_file_mb", "throttle_s"}
+    int_fields = {
+        "port",
+        "embedding_dim",
+        "batch_size",
+        "onnx_threads",
+        "chat_n_ctx",
+        "chat_n_threads",
+        "chat_max_tokens",
+        "chat_top_k",
+    }
+    float_fields = {"max_file_mb", "throttle_s", "chat_temperature", "chat_idle_unload_minutes"}
     out: dict[str, Any] = {}
     for env_name, field in mapping.items():
         raw = os.environ.get(env_name)

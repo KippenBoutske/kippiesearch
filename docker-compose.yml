@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
       args:
         BUILD_ARCH: amd64
-        BUILD_VERSION: "0.1.2"
+        BUILD_VERSION: "0.2.0"
     image: kippiesearch:local
     ports:
       - "8765:8765"
@@ -17,6 +17,7 @@ services:
       KIPPIESEARCH_LOG_LEVEL: info
       KIPPIESEARCH_NAS_ROOTS: /share
       KIPPIESEARCH_AUTH_DISABLED: "true"
+      KIPPIESEARCH_CHAT_MODEL: mock
     volumes:
       - kippiesearch-data:/data
       - ./fixtures/corpus:/share:ro

@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import threading
 from pathlib import Path
 from typing import Any
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kippiesearch import __version__
 from kippiesearch.auth import BearerAuthMiddleware, is_ingress, protect
+from kippiesearch.chat import ChatEngine
 from kippiesearch.config import Settings, load_settings
 from kippiesearch.embeddings import create_embedder
 from kippiesearch.extract import extract_text
@@ -38,6 +40,19 @@ class ReindexBody(BaseModel):
     itslearning: bool = False
 
 
+class ChatBody(BaseModel):
+    message: str = Field(..., min_length=1)
+    top_k: int = Field(6, ge=1, le=20)
+    source: str | None = None
+    file_type: str | None = None
+    after: str | None = None
+    before: str | None = None
+
+
+def _sse(event: str, data: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
 class AppContext:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -46,6 +61,7 @@ class AppContext:
         self.embedder = create_embedder(settings)
         self.status.embedder = self.embedder.info()
         self.searcher = SearchService(self.store, self.embedder)
+        self.chat = ChatEngine(settings, self.searcher)
         self.indexer = Indexer(settings, self.store, self.embedder, self.status)
         self.syncer = ItslearningSync(settings, self.status, self.store)
         self.scheduler = None
@@ -70,7 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     configure_logging(settings.log_level)
     ctx = AppContext(settings)
-    mcp = build_mcp(settings, ctx.store, ctx.searcher)
+    mcp = build_mcp(settings, ctx.store, ctx.searcher, ctx.chat)
     mcp_app = mcp_asgi_app(mcp)
 
     @contextlib.asynccontextmanager
@@ -78,6 +94,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.ctx = ctx
         ctx.scheduler = start_scheduler(settings, ctx.indexer, ctx.syncer, ctx.store, ctx.status)
         log.info("kippiesearch_started", version=__version__, port=settings.port)
+        log.info(
+            "source_notice",
+            source="nas_roots",
+            message=settings.nas_roots_skip_reason() or ",".join(settings.nas_roots),
+        )
         log.info("source_notice", source="smb", message=settings.nas_smb_skip_reason() or "SMB-fallback klaar")
         log.info(
             "source_notice",
@@ -88,6 +109,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             async with mcp.session_manager.run():
                 yield
         finally:
+            ctx.chat.unload()
             if ctx.scheduler:
                 ctx.scheduler.shutdown(wait=False)
 
@@ -130,6 +152,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         stats = ctx.store.stats()
         return {
             "nas_roots": settings.nas_roots,
+            "nas_roots_notice": settings.nas_roots_skip_reason(),
             "smb": {
                 "enabled": settings.nas_smb_enabled,
                 "ready": settings.nas_smb_ready(),
@@ -158,10 +181,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         snap["port"] = settings.port
         snap["notices"] = [
             note
-            for note in (settings.nas_smb_skip_reason(), settings.itslearning_skip_reason())
+            for note in (
+                settings.nas_roots_skip_reason(),
+                settings.nas_smb_skip_reason(),
+                settings.itslearning_skip_reason(),
+            )
             if note
         ]
+        snap["chat"] = ctx.chat.info()
         return snap
+
+    @api.post("/api/chat")
+    def api_chat(body: ChatBody, _: None = Depends(require)):
+        if not settings.chat_enabled:
+            raise HTTPException(status_code=503, detail="Chat staat uit (optie chat_enabled).")
+
+        def events():
+            for event, data in ctx.chat.events(
+                body.message,
+                top_k=body.top_k,
+                source=body.source,
+                file_type=body.file_type,
+                after=body.after,
+                before=body.before,
+            ):
+                yield _sse(event, data)
+
+        return StreamingResponse(
+            events(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @api.post("/api/reindex")
     def api_reindex(body: ReindexBody | None = None, _: None = Depends(require)) -> dict[str, Any]:

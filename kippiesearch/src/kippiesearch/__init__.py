@@ -1,3 +1,3 @@
 """KippieSearch: lokale privacy-first semantic search + MCP-server."""
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"

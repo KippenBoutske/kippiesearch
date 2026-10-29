@@ -7,7 +7,7 @@ configuration:
     description: Bearer token for LAN access to API and MCP. Home Assistant ingress stays open. Leave empty to disable auth (not recommended).
   nas_roots:
     name: NAS / share folders
-    description: Paths from Home Assistant network storage. After adding share "home" (Settings → System → Storage, protocol Share) it appears as /share/<name>, e.g. /share/home.
+    description: Explicit folders to index. Empty = none (recommended). Do not set all of /share — that is other add-ons' app data. After adding network storage "home" the path is /share/home.
   nas_smb_enabled:
     name: Enable SMB fallback
     description: Read Synology shares directly when HA mounts are empty. Read-only.
@@ -64,8 +64,30 @@ configuration:
     name: Pause between files (s)
   exclude_globs:
     name: Exclude globs
+    description: Extra paths to skip. Plugins, cache, node_modules, minified JS and similar app data are always skipped.
   ocr_enabled:
     name: OCR for images
     description: Off by default (RAM). Images are skipped.
+  chat_enabled:
+    name: RAG chat
+    description: Local GGUF model (llama-cpp-python) for the chat UI and MCP tool ask. Off = search only.
+  chat_model:
+    name: Chat model
+    description: Preset gemma3-1b (default) or gemma3-4b, or Hugging Face repo:file.gguf. Downloads to /data on first use, then offline.
+  chat_n_ctx:
+    name: Chat context (tokens)
+    description: Smaller uses less RAM. 2048 is a good Pi 5 default.
+  chat_n_threads:
+    name: Chat CPU threads
+    description: Leave cores for Home Assistant. 2 is safe on a Pi 5.
+  chat_max_tokens:
+    name: Max answer tokens
+  chat_temperature:
+    name: Temperature
+  chat_idle_unload_minutes:
+    name: Unload model after idle (minutes)
+    description: 0 keeps it in RAM. 15 saves memory next to Home Assistant.
+  chat_top_k:
+    name: RAG hits per question
 network:
-  8765/tcp: Web UI, REST API and MCP (/mcp)
+  8765/tcp: Web UI, REST API, chat (SSE) and MCP (/mcp)
