@@ -104,6 +104,9 @@ async function loadStatus() {
     const errors = (data.errors || [])
       .map((e) => `<li><code>${e.path}</code> — ${e.error}</li>`)
       .join("") || "<li>geen</li>";
+    const notices = (data.notices || [])
+      .map((n) => `<li>${n}</li>`)
+      .join("") || "<li>geen</li>";
     statusEl.innerHTML = `
       <div class="grid">
         <article class="card"><p class="tag">Totaal</p><p class="stat">${store.files || 0}</p><p>${store.chunks || 0} chunks</p></article>
@@ -119,6 +122,8 @@ async function loadStatus() {
         <p>Laatste it's learning-sync: ${store.last_itslearning_sync || "—"}</p>
         <p>Huidig bestand: ${data.current_file || "—"} (${data.processed || 0}/${data.total || 0})</p>
         <p>Laatste fout: ${store.last_error || "geen"}</p>
+        <h3>Bronnen</h3>
+        <ul>${notices}</ul>
         <div class="actions">
           <button class="primary" id="reindex">Index opnieuw</button>
           <button class="ghost" id="reindex-full">Volledige herindex</button>

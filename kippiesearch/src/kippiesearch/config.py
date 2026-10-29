@@ -35,16 +35,16 @@ class Settings(BaseModel):
     # NAS via HA netwerkopslag (voorkeur) en/of SMB-fallback
     nas_roots: list[str] = Field(default_factory=lambda: ["/share", "/media"])
     nas_smb_enabled: bool = False
-    nas_smb_host: str = "192.168.1.x"
-    nas_smb_shares: list[str] = Field(default_factory=lambda: ["home"])
+    nas_smb_host: str = ""
+    nas_smb_shares: list[str] = Field(default_factory=list)
     nas_smb_username: str = ""
     nas_smb_password: str = ""
     nas_smb_port: int = 445
 
-    # it's learning
+    # it's learning — URL/school leeg tot de gebruiker ze invult
     itslearning_enabled: bool = False
-    itslearning_url: str = "https://school.itslearning.com"
-    itslearning_organisation: str = "je school"
+    itslearning_url: str = ""
+    itslearning_organisation: str = ""
     itslearning_username: str = ""
     itslearning_password: str = ""
     itslearning_rate_limit_s: float = 0.75
@@ -121,6 +121,50 @@ class Settings(BaseModel):
 
     def require_auth(self) -> bool:
         return bool(self.api_token) and not self.auth_disabled
+
+    def nas_smb_ready(self) -> bool:
+        return bool(
+            self.nas_smb_enabled
+            and str(self.nas_smb_host or "").strip()
+            and self.nas_smb_shares
+            and str(self.nas_smb_username or "").strip()
+        )
+
+    def nas_smb_skip_reason(self) -> str:
+        if not self.nas_smb_enabled:
+            return "SMB-fallback uitgeschakeld"
+        missing: list[str] = []
+        if not str(self.nas_smb_host or "").strip():
+            missing.append("host")
+        if not self.nas_smb_shares:
+            missing.append("share")
+        if not str(self.nas_smb_username or "").strip():
+            missing.append("gebruikersnaam")
+        if missing:
+            return "SMB-fallback overgeslagen: " + ", ".join(missing) + " ontbreekt"
+        return ""
+
+    def itslearning_ready(self) -> bool:
+        return bool(
+            self.itslearning_enabled
+            and str(self.itslearning_url or "").strip()
+            and str(self.itslearning_username or "").strip()
+            and str(self.itslearning_password or "").strip()
+        )
+
+    def itslearning_skip_reason(self) -> str:
+        if not self.itslearning_enabled:
+            return "it's learning-sync uitgeschakeld"
+        missing: list[str] = []
+        if not str(self.itslearning_url or "").strip():
+            missing.append("URL")
+        if not str(self.itslearning_username or "").strip():
+            missing.append("gebruikersnaam")
+        if not str(self.itslearning_password or "").strip():
+            missing.append("wachtwoord")
+        if missing:
+            return "it's learning overgeslagen: " + ", ".join(missing) + " ontbreekt"
+        return ""
 
 
 def _load_options_json(path: Path) -> dict[str, Any]:

@@ -14,12 +14,7 @@ log = get_logger("nas")
 
 
 def smb_available(settings: Settings) -> bool:
-    return bool(
-        settings.nas_smb_enabled
-        and settings.nas_smb_host
-        and settings.nas_smb_shares
-        and settings.nas_smb_username
-    )
+    return settings.nas_smb_ready()
 
 
 def _register(settings: Settings) -> None:

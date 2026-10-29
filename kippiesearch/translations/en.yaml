@@ -13,11 +13,12 @@ configuration:
     description: Read Synology shares directly when HA mounts are empty. Read-only.
   nas_smb_host:
     name: SMB host
+    description: LAN address of the NAS, e.g. 192.168.1.x. Empty disables SMB.
   nas_smb_port:
     name: SMB port
   nas_smb_shares:
     name: SMB share names
-    description: NAS share names. Default is home (Synology personal home folder of the logged-in user).
+    description: NAS share names, e.g. home or documents. Empty disables SMB.
   nas_smb_username:
     name: SMB username
     description: Leave empty until you use the SMB fallback. Do not put credentials in git.
@@ -28,8 +29,10 @@ configuration:
     name: Enable it's learning sync
   itslearning_url:
     name: it's learning URL
+    description: For example https://<school>.itslearning.com. Empty disables sync.
   itslearning_organisation:
     name: School / organisation name
+    description: Optional, display only. No default.
   itslearning_username:
     name: it's learning username
   itslearning_password:

@@ -1,4 +1,4 @@
-"""it's learning sync (je school e.d.) via requests — geen Chromium.
+"""it's learning sync via requests — geen Chromium. URL/school komen uit add-on-opties.
 
 Aanpak:
 1. HTML-login met gebruikersnaam/wachtwoord (geen SSO nodig).
@@ -51,14 +51,10 @@ class ItslearningSync:
                 "User-Agent": "KippieSearch/0.1 (personal local archive; +https://github.com/KippenBoutske/kippiesearch)"
             }
         )
-        self.base = settings.itslearning_url.rstrip("/")
+        self.base = str(settings.itslearning_url or "").rstrip("/")
 
     def enabled(self) -> bool:
-        return bool(
-            self.settings.itslearning_enabled
-            and self.settings.itslearning_username
-            and self.settings.itslearning_password
-        )
+        return self.settings.itslearning_ready()
 
     def _sleep(self) -> None:
         time.sleep(max(0.2, self.settings.itslearning_rate_limit_s))
@@ -242,7 +238,9 @@ class ItslearningSync:
 
     def sync(self) -> dict[str, Any]:
         if not self.enabled():
-            return {"ok": False, "reason": "itslearning uit of credentials ontbreken"}
+            reason = self.settings.itslearning_skip_reason()
+            log.info("itslearning_skipped", reason=reason)
+            return {"ok": False, "reason": reason}
         self.status.begin("sync-itslearning")
         downloaded = 0
         courses_n = 0

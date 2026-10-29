@@ -23,7 +23,7 @@ Browser / Grok Bot
      │ EmbeddingGemma 2   │  ONNX q4, text-only, offline na 1e start
      └─────────┬──────────┘
                │
-     /share & /media (HA netwerkopslag) ── Synology 192.168.1.x
+     /share & /media (HA netwerkopslag) ── NAS (SMB)
      SMB-fallback (smbprotocol, read-only)
      /data/itslearning  ← dagelijkse sync (requests, geen Chromium)
 ```
@@ -90,27 +90,27 @@ Handig voor ontwikkeling of als de store de repo niet pakt:
 - Eerste keer met `embedder: onnx` downloadt EmbeddingGemma 2 q4 naar `/data/models` (honderden MB, eenmalig, daarna offline).
 - Daarna **Status → Index opnieuw**.
 
-## NAS-koppeling (Synology `home` op `192.168.1.x`)
+## NAS-koppeling
 
-Doel: de persoonlijke Synology-**home**-share indexeren. Die share mappt naar de homemap van de SMB-gebruiker waarmee je inlogt. Wachtwoorden horen alleen in de HA-opties, nooit in git.
+Wachtwoorden horen alleen in de HA-opties, nooit in git. Host, share en inlog zijn **leeg tot je ze invult**; zonder die waarden blijft SMB uit (zichtbaar in status/logs).
 
 ### Voorkeur — HA-netwerkopslag (add-on mount `/share`)
 
 Een add-on kan op HA OS niet zelf SMB-mounten. Laat Home Assistant dat doen:
 
 1. HA → Instellingen → Systeem → **Opslag** → **netwerkopslag toevoegen**.
-2. Server: `192.168.1.x`
+2. Server: het LAN-adres van je NAS, bijvoorbeeld `192.168.1.x`
 3. Protocol: **Share** (SMB/CIFS)
-4. Share: `home`
-5. Gebruikersnaam + wachtwoord van dat Synology-account (in HA, niet in deze repo).
-6. Kies een naam, bijvoorbeeld `home`. HA mount de share dan onder `/share/<naam>` (dus `/share/home` als je hem `home` noemt).
-7. In KippieSearch: zet `nas_roots` op dat pad, bijvoorbeeld `/share/home`. Standaard staan `/share` en `/media` aan; `/share` indexeert alles wat HA daar neerzet, `/share/home` beperkt het tot die ene mount.
+4. Share: de sharenaam op de NAS, bijvoorbeeld `home` of `documents`
+5. Gebruikersnaam + wachtwoord van dat NAS-account (in HA, niet in deze repo).
+6. Kies een naam, bijvoorbeeld `nas`. HA mount de share dan onder `/share/<naam>` (dus `/share/nas` als je hem `nas` noemt).
+7. In KippieSearch: zet `nas_roots` op dat pad, bijvoorbeeld `/share/nas`. Standaard staan `/share` en `/media` aan; `/share` indexeert alles wat HA daar neerzet.
 
 Alleen lezen is genoeg.
 
 ### Alternatief — SMB-fallback in de add-on
 
-Als er geen HA-mount is: `nas_smb_enabled: true`, vul `nas_smb_username` en `nas_smb_password` in. Defaults: host `192.168.1.x`, share `home`, poort 445. De add-on leest via `smbprotocol` (read-only) en cachet naar `/data/nas-cache`. Zonder gebruikersnaam gebeurt er niets.
+Als er geen HA-mount is: `nas_smb_enabled: true` en vul `nas_smb_host` (bijv. `192.168.1.x`), `nas_smb_shares` (bijv. `home`), `nas_smb_username` en `nas_smb_password` in. Poort default 445. De add-on leest via `smbprotocol` (read-only) en cachet naar `/data/nas-cache`. Ontbreekt host, share of gebruiker, dan wordt SMB overgeslagen.
 
 ## Credentials veilig zetten
 
@@ -140,13 +140,14 @@ Endpoint: Streamable HTTP op hetzelfde proces.
 
 In Grok / Cursor: custom MCP-server, transport Streamable HTTP, URL hierboven, header Bearer. HA-ingress is niet nodig voor MCP; Grok praat rechtstreeks naar poort 8765.
 
-## it's learning (je school, je regio)
+## it's learning
 
-- Login met gebruikersnaam + wachtwoord (geen SSO).
-- URL en schoolnaam zijn configureerbaar (default `https://school.itslearning.com`).
+- Zet `itslearning_enabled: true` en vul URL, gebruikersnaam en wachtwoord in (geen SSO).
+- URL-voorbeeld: `https://<school>.itslearning.com` — er is geen default-school in de repo.
+- Organisatienaam is optioneel (alleen ter herkenning in de UI).
 - Dagelijks (cron `0 3 * * *`, Europe/Amsterdam): login → cursusbestanden naar `/data/itslearning` → index.
 - Rate-limit standaard 0,75 s. Alleen wat jíj mag zien.
-- **Handmatig nodig:** echte login testen. Zonder credentials blijft sync uit.
+- Zonder URL of credentials blijft sync uit; status en logs zeggen wat er ontbreekt.
 
 Playwright zit er bewust niet in (Chromium-RAM op de Pi).
 
@@ -200,7 +201,7 @@ Houd headroom voor Home Assistant. Begin met de defaults.
 |----------|--------|
 | Add-on bouwt niet | Logs van de Supervisor-build; aarch64 + netwerk naar PyPI/GHCR. |
 | Model-download faalt | Eerste start heeft uitgaand HTTPS naar Hugging Face nodig; daarna offline. |
-| Geen NAS-hits | HA-netwerkopslag `home` gemount? `nas_roots` = `/share/<naam>`? Of SMB aan, share `home`, user+wachtwoord ingevuld? |
+| Geen NAS-hits | HA-netwerkopslag gemount? `nas_roots` = `/share/<naam>`? Of SMB aan met host, share, user en wachtwoord? |
 | it's learning-fout | URL, user/wachtwoord, geen SSO; kijk `/api/status` last_error (geen secrets in logs). |
 | 401 op API/MCP | `Authorization: Bearer …`; ingress slaat token over. |
 | HA wordt traag | `onnx_threads=1`, grotere `throttle_s`, kleinere `batch_size`. |
