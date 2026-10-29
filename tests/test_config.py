@@ -16,6 +16,10 @@ def test_defaults_have_no_personal_or_lan_values():
     assert settings.itslearning_username == ""
     assert settings.itslearning_password == ""
     assert settings.api_token == ""
+    assert settings.chat_model == "gemma3-1b"
+    assert settings.chat_enabled is True
+    assert settings.nas_roots == []
+    assert "share" in settings.nas_roots_skip_reason().lower()
     dumped = settings.model_dump_json()
     assert "school" not in dumped.lower()
     assert "192.168.1.x" not in dumped

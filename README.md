@@ -1,6 +1,6 @@
 # KippieSearch
 
-Lokale, privacy-first **semantic search**. Draait als **Home Assistant add-on** op een Raspberry Pi 5 (8 GB, aarch64, HA OS): één container, één proces (FastAPI + web-UI + REST + MCP + scheduler). Bestanden blijven op je LAN. Embeddings gebeuren op de Pi, niet in de cloud.
+Lokale, privacy-first **semantic search + RAG-chat**. Draait als **Home Assistant add-on** op een Raspberry Pi 5 (8 GB, aarch64, HA OS): één container, één proces (FastAPI + chat-UI + REST + MCP + scheduler). Bestanden blijven op je LAN. Embeddings en het chatmodel draaien op de Pi, niet in de cloud.
 
 Poort **8765** (configureerbaar; vrij ten opzichte van HA 8123, Radarr 7878, Sonarr 8989, qBittorrent 8082, Jellyfin 8096, Portainer 9000, Fladder 8098). Ingress in Home Assistant zit erbij.
 
@@ -12,8 +12,8 @@ Browser / Grok Bot
         ▼
 ┌──────────────────────────────────────────┐
 │  FastAPI (één proces)                    │
-│  /           web-UI                      │
-│  /api/*      search, status, reindex     │
+│  /           chat-UI (zoeken + RAG)      │
+│  /api/*      search, chat SSE, status    │
 │  /mcp        Streamable HTTP MCP         │
 │  APScheduler dagelijkse schoolsync + NAS │
 └──────────────┬───────────────────────────┘
@@ -21,9 +21,10 @@ Browser / Grok Bot
      ┌─────────┴──────────┐
      │ LanceDB (/data)    │  embedded, geen extra service
      │ EmbeddingGemma 2   │  ONNX q4, text-only, offline na 1e start
+     │ Gemma 3 GGUF       │  llama-cpp-python, lazy load, unload na idle
      └─────────┬──────────┘
                │
-     /share & /media (HA netwerkopslag) ── NAS (SMB)
+     nas_roots (expliciet, bv. /share/<naam>) ── NAS (SMB)
      SMB-fallback (smbprotocol, read-only)
      /data/itslearning  ← dagelijkse sync (requests, geen Chromium)
 ```
@@ -33,12 +34,14 @@ Browser / Grok Bot
 | Onderdeel | Keuze | Waarom |
 |-----------|--------|--------|
 | Vector DB | **LanceDB** (embedded) | Geen extra proces, Arrow-native, licht op ARM. Qdrant embedded/Chroma trekken meer runtime. |
-| Embeddings | **EmbeddingGemma 2** text-only, ONNX **q4** (`onnx-community/embeddinggemma-2-ONNX`) | Nieuwere, lichtere text-backbone (270M i.p.v. 300M), beter op code. q4 ≈ 174 MB. Vision/audio uit (RAM). Fallback: `hash`-embedder (tests) of sentence-transformers extra. |
+| Embeddings | **EmbeddingGemma 2** ONNX **q4** (`onnx/model_q4.onnx`) | Text-encoder ~174 MB. De graph heeft nog `image_features`/`video_features`/`audio_features`; we voeren 0-rij tensors in (zelfde truc als FastEmbed). Vision/audio-encoders worden niet gedownload. Fallback: `hash`. |
 | Prompts | `task: search result \| query: …` / `title: … \| text: …` | Officiële query/document-prompts van EmbeddingGemma 2. |
 | Dimensie | **256** (MRL, her-genormaliseerd) | Bijna volle tekstkwaliteit, 3× minder vectoropslag. 128/512/768 instelbaar. |
 | Base image | `python:3.12-slim-bookworm` | Geen Alpine: onnxruntime heeft glibc-wheels voor aarch64. |
 | it's learning | `requests` + sessie-login, daarna REST-cookie of HTML-crawl | Officiële REST API eist OAuth-client van school. Playwright/Chromium is te zwaar naast HA op 8 GB. |
 | Auth | Bearer-token voor API/MCP; **ingress zonder token** | LAN + Tailscale beveiligen met token; HA-gebruiker is al ingelogd. |
+| Chat-LLM | **llama-cpp-python** in-process, CPU-wheels (aarch64/amd64) | Geen extra serverproces. Lazy load + unload na idle spaart RAM naast HA. Default: Gemma 3 1B instruct Q4_K_M. |
+| Chat-UI | Vanilla HTML/CSS/JS, relatieve paden | Geen build-stap. Werkt achter HA-ingress. Donker/licht, Pixel-layout. |
 
 ### Mapstructuur
 
@@ -52,13 +55,13 @@ kippiesearch/                   de add-on (build-context)
   translations/{en,nl}.yaml
   src/kippiesearch/             Python-pakket
     main.py                     FastAPI
-    embeddings.py / indexer.py / store.py / search.py
+    embeddings.py / indexer.py / store.py / search.py / chat.py
     itslearning.py / nas.py / mcp_server.py
-    static/                     HTML/CSS/JS (geen build-stap)
+    static/                     chat-UI HTML/CSS/JS (geen build-stap)
 tests/  fixtures/  docker-compose.yml  .github/workflows/ci.yml
 ```
 
-Persistent op de Pi (`/data` van de add-on): `lancedb/`, `models/` (EmbeddingGemma, éénmalige download), `itslearning/`, `nas-cache/`.
+Persistent op de Pi (`/data` van de add-on): `lancedb/`, `models/` (EmbeddingGemma + GGUF, éénmalige download), `itslearning/`, `nas-cache/`.
 
 ## Installatie op Home Assistant OS
 
@@ -104,7 +107,7 @@ Een add-on kan op HA OS niet zelf SMB-mounten. Laat Home Assistant dat doen:
 4. Share: de sharenaam op de NAS, bijvoorbeeld `home` of `documents`
 5. Gebruikersnaam + wachtwoord van dat NAS-account (in HA, niet in deze repo).
 6. Kies een naam, bijvoorbeeld `nas`. HA mount de share dan onder `/share/<naam>` (dus `/share/nas` als je hem `nas` noemt).
-7. In KippieSearch: zet `nas_roots` op dat pad, bijvoorbeeld `/share/nas`. Standaard staan `/share` en `/media` aan; `/share` indexeert alles wat HA daar neerzet.
+7. In KippieSearch: zet `nas_roots` op **dat pad**, bijvoorbeeld `/share/nas`. Laat het **niet** op heel `/share` staan: daar zet HA app-data van andere add-ons (caches, plugins, JS-bundles). Default is leeg tot je een pad invult.
 
 Alleen lezen is genoeg.
 
@@ -136,7 +139,7 @@ Endpoint: Streamable HTTP op hetzelfde proces.
 
 - URL: `http://<pi-ip>:8765/mcp` (LAN of Tailscale)
 - Auth: `Authorization: Bearer <api_token>`
-- Tools: `search(query, top_k, source?, file_type?)`, `list_sources()`, `get_file_content(path, max_chars)` (alleen tekst, alleen geïndexeerde roots, path-traversal geblokkeerd)
+- Tools: `search(query, top_k, source?, file_type?)`, `ask(question, top_k, source?, file_type?)` (RAG-antwoord + bronnen), `list_sources()`, `get_file_content(path, max_chars)` (alleen tekst, alleen geïndexeerde roots, path-traversal geblokkeerd)
 
 In Grok / Cursor: custom MCP-server, transport Streamable HTTP, URL hierboven, header Bearer. HA-ingress is niet nodig voor MCP; Grok praat rechtstreeks naar poort 8765.
 
@@ -165,7 +168,7 @@ KIPPIESEARCH_DATA_DIR=./data KIPPIESEARCH_NAS_ROOTS=./fixtures/corpus \
 
 Of: `docker compose up --build` → http://127.0.0.1:8765 (hash-embedder, fixtures als `/share`).
 
-API: `GET /api/search?q=…`, `/api/sources`, `/api/status`, `POST /api/reindex`, `/health`.
+API: `GET /api/search?q=…`, `POST /api/chat` (SSE), `/api/sources`, `/api/status`, `POST /api/reindex`, `/health`.
 
 ## Pi-tuning
 
@@ -178,22 +181,46 @@ API: `GET /api/search?q=…`, `/api/sources`, `/api/status`, `POST /api/reindex`
 | `max_seq_length` | 512 | 256 spaart RAM, 1024 is zwaarder |
 | `embedding_dim` | 256 | 128 nog kleiner, 768 voller |
 
+## RAG-chat
+
+Flow: vraag → EmbeddingGemma-retrieval (top-k chunks) → prompt met bronnen → gestreamd antwoord, met `[1]` / `[2]` die naar bronkaarten wijzen. Staat het niet in de bestanden, dan zegt het model dat eerlijk.
+
+- `POST /api/chat` — SSE (`sources`, `token`, `done`, `error`)
+- MCP-tool `ask` — zelfde flow, zonder stream
+- Model-download bij **eerste chat**, daarna offline in `/data/models`
+- Lazy load; na `chat_idle_unload_minutes` (default 15) gaat het GGUF uit RAM
+
+| Optie | Default | Betekenis |
+|--------|---------|-----------|
+| `chat_enabled` | true | Zet uit als je alleen wilt zoeken |
+| `chat_model` | `gemma3-1b` | Preset `gemma3-1b` / `gemma3-4b`, of `org/repo:file.gguf`, of `mock` |
+| `chat_n_ctx` | 2048 | Klein houden op de Pi |
+| `chat_n_threads` | 2 | Cores overlaten aan HA |
+| `chat_max_tokens` | 512 | Max. antwoordlengte |
+| `chat_temperature` | 0.3 | Lager = zakelijker |
+| `chat_idle_unload_minutes` | 15 | `0` = in RAM houden |
+| `chat_top_k` | 6 | Chunks in de RAG-prompt |
+
+Runtime: **llama-cpp-python** in hetzelfde proces (CPU-wheels via de extra-index van het project, aarch64 + amd64). Lichter dan een aparte llama.cpp-server: geen tweede proces, unload is `del` + `gc`.
+
 ## RAM / snelheid
 
-Gemeten op de ontwikkel-VM (x86_64, 4 vCPU, hash-embedder, 44 kleine docs via `python scripts/benchmark.py`):
+Gemeten op de ontwikkel-VM (x86_64, hash-embedder + mock-LLM, kleine testdocs via `python scripts/benchmark.py` en pytest):
 
-- index: **0,52 s** (44 bestanden)
-- query: **6,6 ms**
-- RSS na index/search: **~197 MB** (proces laadt ook onnxruntime-libs mee; draaiende FastAPI ~235 MB)
+- index/search: honderden ms / enkele ms (hash, geen ONNX)
+- mock-chat SSE: tokens meteen, geen GGUF-RAM
 
-Realistische Pi 5 (8 GB, naast HA + *arr + Jellyfin):
+Realistische Pi 5 (8 GB, naast Home Assistant):
 
-- Zonder ONNX-model (hash): grofweg 80–150 MB RSS.
-- Met EmbeddingGemma 2 q4: model ~174 MB op schijf; runtime grofweg **450–900 MB** RSS, piek hoger tijdens eerste download.
-- Indexeren: CPU-bound; tientallen tekstbestanden/minuut is haalbaar met throttle. Grote PDF’s langzamer.
-- Query na warmup: tientallen tot een paar honderd ms.
+| Onderdeel | Schijf | Extra RAM (geladen) | tok/s (verwacht, CPU) |
+|-----------|--------|---------------------|------------------------|
+| EmbeddingGemma 2 q4 | ~174 MB | ~450–900 MB proces met index | n.v.t. (query tientallen–honderden ms) |
+| Gemma 3 1B instruct Q4_K_M | ~806 MB | **~1,2–1,8 GB** extra | **~15–30 tok/s** |
+| Gemma 3 4B instruct Q4_K_M | ~2,5 GB | **~3,2–4,0 GB** extra | **~5–12 tok/s** |
 
-Houd headroom voor Home Assistant. Begin met de defaults.
+1B is de default omdat 4B naast HA + *arr + Jellyfin krap wordt op 8 GB. Idle-unload (15 min) geeft het geheugen terug. Zet `chat_enabled: false` als je het model helemaal niet wilt.
+
+Houd headroom voor Home Assistant. Begin met de defaults (`gemma3-1b`, 2 threads, ctx 2048).
 
 ## Troubleshooting
 
@@ -201,7 +228,9 @@ Houd headroom voor Home Assistant. Begin met de defaults.
 |----------|--------|
 | Add-on bouwt niet | Logs van de Supervisor-build; aarch64 + netwerk naar PyPI/GHCR. |
 | Model-download faalt | Eerste start heeft uitgaand HTTPS naar Hugging Face nodig; daarna offline. |
-| Geen NAS-hits | HA-netwerkopslag gemount? `nas_roots` = `/share/<naam>`? Of SMB aan met host, share, user en wachtwoord? |
+| Geen NAS-hits | `nas_roots` leeg? Zet het pad van je netwerkopslag (`/share/<naam>`), niet heel `/share`. Of SMB aan met host, share, user en wachtwoord? |
+| Zoeken: image_features missing | V0.1.2 bug: de q4-ONNX-graph eist lege multimodal-tensors. Vanaf 0.2.0 worden die als 0-rij gevoed. Herstart na update; model opnieuw downloaden is niet nodig. |
+| Index: `'_text'` / KeyError | V0.1.2 bug: een mislukte embed-batch verpestte volgende bestanden. Vanaf 0.2.0 blijft metadata intact en wordt de fout gelogd met type + traceback. |
 | it's learning-fout | URL, user/wachtwoord, geen SSO; kijk `/api/status` last_error (geen secrets in logs). |
 | 401 op API/MCP | `Authorization: Bearer …`; ingress slaat token over. |
 | HA wordt traag | `onnx_threads=1`, grotere `throttle_s`, kleinere `batch_size`. |

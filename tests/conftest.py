@@ -33,6 +33,8 @@ def tmp_settings(tmp_path: Path) -> Settings:
         itslearning_enabled=False,
         nas_smb_enabled=False,
         log_level="warning",
+        chat_enabled=True,
+        chat_model="mock",
     )
 
 

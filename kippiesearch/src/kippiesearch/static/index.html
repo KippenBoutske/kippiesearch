@@ -1,62 +1,102 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="nl" data-theme="dark">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
     <title>KippieSearch</title>
+    <script>
+      (function () {
+        var p = location.pathname || "/";
+        if (p.endsWith("index.html")) p = p.slice(0, -10);
+        if (!p.endsWith("/")) p += "/";
+        var b = document.createElement("base");
+        b.href = p;
+        document.head.appendChild(b);
+        try {
+          var t = localStorage.getItem("kippiesearch.theme");
+          if (!t) t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>🐔</text></svg>" />
-    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="static/style.css" />
   </head>
   <body>
-    <div class="wrap">
-      <header>
-        <div class="brand">
-          <div class="logo" aria-hidden="true">🐔</div>
-          <div>
-            <h1>KippieSearch</h1>
-            <p class="tag">Lokale semantic search · NAS + school · blijft op je Pi</p>
+    <div class="app">
+      <div class="scrim" id="scrim" hidden></div>
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+          <div class="brand">
+            <span class="logo" aria-hidden="true">🐔</span>
+            <div>
+              <strong>KippieSearch</strong>
+              <span class="muted">lokaal · privacy-first</span>
+            </div>
+          </div>
+          <button type="button" class="icon-btn" id="close-sidebar" aria-label="Zijbalk sluiten">✕</button>
+        </div>
+        <button type="button" class="new-chat" id="new-chat">+ Nieuw gesprek</button>
+        <nav class="modes" aria-label="Modus">
+          <button type="button" data-mode="chat" class="active">Chat</button>
+          <button type="button" data-mode="search">Zoeken</button>
+          <button type="button" data-mode="status">Status</button>
+        </nav>
+        <h2 class="sidebar-label">Gesprekken</h2>
+        <div class="history" id="history"></div>
+        <div class="sidebar-foot">
+          <button type="button" class="ghost" id="theme-toggle" aria-label="Thema wisselen">Thema</button>
+          <p class="tiny muted">Historie blijft in deze browser.</p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <button type="button" class="icon-btn menu-btn" id="open-sidebar" aria-label="Menu">☰</button>
+          <div class="top-title">
+            <h1 id="view-title">Chat</h1>
+            <p class="muted" id="view-sub">Vraag iets over je bestanden</p>
+          </div>
+          <div class="top-actions">
+            <span class="pill" id="model-pill">lokaal</span>
+          </div>
+        </header>
+
+        <div class="filters" id="filters">
+          <div class="chips" role="group" aria-label="Bron">
+            <button type="button" class="chip active" data-filter="source" data-value="">Alle bronnen</button>
+            <button type="button" class="chip" data-filter="source" data-value="nas">NAS</button>
+            <button type="button" class="chip" data-filter="source" data-value="school">School</button>
+          </div>
+          <div class="chips" role="group" aria-label="Type">
+            <button type="button" class="chip active" data-filter="file_type" data-value="">Alle types</button>
+            <button type="button" class="chip" data-filter="file_type" data-value="pdf">PDF</button>
+            <button type="button" class="chip" data-filter="file_type" data-value="docx">DOCX</button>
+            <button type="button" class="chip" data-filter="file_type" data-value="pptx">PPTX</button>
+            <button type="button" class="chip" data-filter="file_type" data-value="text">Tekst</button>
+            <button type="button" class="chip" data-filter="file_type" data-value="code">Code</button>
+          </div>
+          <div class="date-chips">
+            <label>van <input id="after" type="date" /></label>
+            <label>tot <input id="before" type="date" /></label>
           </div>
         </div>
-        <nav>
-          <button type="button" data-view="search" class="active">Zoeken</button>
-          <button type="button" data-view="status">Status</button>
-        </nav>
-      </header>
 
-      <section id="search-view">
-        <form id="search-form" class="searchbox">
-          <input id="q" type="search" placeholder="Zoek in je bestanden…" autocomplete="off" autofocus />
-          <button class="primary" type="submit">Zoek</button>
+        <section class="stage" id="chat-view" data-view="chat">
+          <div class="thread" id="thread"></div>
+        </section>
+        <section class="stage hidden" id="search-view" data-view="search">
+          <div class="results" id="results"></div>
+        </section>
+        <section class="stage hidden" id="status-view" data-view="status"></section>
+
+        <form class="composer" id="composer">
+          <textarea id="q" rows="1" placeholder="Vraag iets over je bestanden…" autocomplete="off" enterkeyhint="send"></textarea>
+          <button type="submit" class="send" id="send" aria-label="Verstuur">↑</button>
         </form>
-        <div class="filters">
-          <select id="source">
-            <option value="">Alle bronnen</option>
-            <option value="nas">NAS</option>
-            <option value="school">it's learning</option>
-          </select>
-          <select id="file_type">
-            <option value="">Alle types</option>
-            <option value="pdf">PDF</option>
-            <option value="docx">DOCX</option>
-            <option value="pptx">PPTX</option>
-            <option value="text">Tekst</option>
-            <option value="code">Code</option>
-          </select>
-          <label>van <input id="after" type="date" /></label>
-          <label>tot <input id="before" type="date" /></label>
-          <label>top_k <input id="top_k" type="number" min="1" max="50" value="8" /></label>
-        </div>
-        <div id="results" class="results">
-          <p class="hint">Typ een vraag of een paar trefwoorden. Resultaten blijven lokaal.</p>
-        </div>
-      </section>
-
-      <section id="status-view" class="hidden"></section>
-
-      <footer>
-        Privacy-first · embeddings op dit apparaat · MCP op <code>/mcp</code>
-      </footer>
+      </main>
     </div>
-    <script src="/static/app.js"></script>
+    <script src="static/app.js"></script>
   </body>
 </html>

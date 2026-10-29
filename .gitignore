@@ -24,4 +24,5 @@ models/
 .idea/
 .vscode/
 .playwright-mcp/
+screenshots/
 kippiesearch/src/kippiesearch.egg-info/

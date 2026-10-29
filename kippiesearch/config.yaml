@@ -1,7 +1,7 @@
 name: KippieSearch
-version: "0.1.2"
+version: "0.2.0"
 slug: kippiesearch
-description: Lokale privacy-first semantic search + MCP-server voor NAS en it's learning
+description: Lokale privacy-first semantic search, RAG-chat en MCP-server voor NAS en it's learning
 url: https://github.com/KippenBoutske/kippiesearch
 arch:
   - aarch64
@@ -14,7 +14,7 @@ homeassistant: "2024.1.0"
 ingress: true
 ingress_port: 8765
 ingress_stream: true
-panel_icon: mdi:magnify
+panel_icon: mdi:chat-question
 panel_title: KippieSearch
 panel_admin: false
 webui: "http://[HOST]:[PORT:8765]/"
@@ -38,9 +38,7 @@ backup_exclude:
 options:
   log_level: info
   api_token: ""
-  nas_roots:
-    - /share
-    - /media
+  nas_roots: []
   nas_smb_enabled: false
   nas_smb_host: ""
   nas_smb_port: 445
@@ -64,8 +62,16 @@ options:
   batch_size: 4
   max_file_mb: 32
   throttle_s: 0.05
-  exclude_globs: "**/.git/**,**/node_modules/**,**/@eaDir/**,**/#recycle/**,**/*.mkv,**/*.mp4,**/*.iso"
+  exclude_globs: "**/.git/**,**/node_modules/**,**/cache/**,**/caches/**,**/plugins/**,**/@eaDir/**,**/#recycle/**,**/*.min.js,**/*.map,**/*.bundle.js,**/*.umd.js,**/*.dart.js,**/*.mkv,**/*.mp4,**/*.iso"
   ocr_enabled: false
+  chat_enabled: true
+  chat_model: gemma3-1b
+  chat_n_ctx: 2048
+  chat_n_threads: 2
+  chat_max_tokens: 512
+  chat_temperature: 0.3
+  chat_idle_unload_minutes: 15
+  chat_top_k: 6
 schema:
   log_level: list(debug|info|warning|error)
   api_token: password
@@ -97,3 +103,11 @@ schema:
   throttle_s: float
   exclude_globs: str
   ocr_enabled: bool
+  chat_enabled: bool
+  chat_model: str
+  chat_n_ctx: int(512,8192)
+  chat_n_threads: int(1,8)
+  chat_max_tokens: int(32,2048)
+  chat_temperature: float
+  chat_idle_unload_minutes: float
+  chat_top_k: int(1,20)

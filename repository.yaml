@@ -1,4 +1,4 @@
 name: KippieSearch
 url: https://github.com/KippenBoutske/kippiesearch
 maintainer: KippieSearch
-description: Lokale privacy-first semantic search + MCP-server (Home Assistant add-on)
+description: Lokale privacy-first semantic search, RAG-chat en MCP-server (Home Assistant add-on)

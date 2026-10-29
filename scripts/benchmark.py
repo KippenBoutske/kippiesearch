@@ -72,6 +72,11 @@ def main() -> None:
     print("- Indexeren PDF/DOCX:      enkele tot tientallen bestanden/minuut (CPU, throttle)")
     print("- Query:                   tens tot low-hundreds ms na warmup")
     print("- Laat batch_size=4, onnx_threads=2, max_seq_length=512, throttle_s=0.05")
+    print()
+    print("RAG-chat (llama-cpp-python, CPU, verwachting Pi 5):")
+    print("- Gemma 3 1B Q4_K_M: ~806 MB schijf, ~1,2–1,8 GB extra RAM, ~15–30 tok/s")
+    print("- Gemma 3 4B Q4_K_M: ~2,5 GB schijf, ~3,2–4,0 GB extra RAM, ~5–12 tok/s")
+    print("- Idle-unload (default 15 min) geeft GGUF-RAM terug aan Home Assistant")
     shutil.rmtree(tmp, ignore_errors=True)
 
 

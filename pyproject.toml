@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kippiesearch"
-version = "0.1.2"
-description = "Lokale privacy-first semantic search + MCP-server (Home Assistant add-on)"
+version = "0.2.0"
+description = "Lokale privacy-first semantic search, RAG-chat en MCP-server (Home Assistant add-on)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -44,6 +44,9 @@ ocr = [
 ]
 fallback = [
   "sentence-transformers>=3.3.0",
+]
+chat = [
+  "llama-cpp-python>=0.3.2",
 ]
 
 [project.scripts]
