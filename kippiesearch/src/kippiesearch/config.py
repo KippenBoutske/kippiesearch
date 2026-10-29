@@ -36,7 +36,7 @@ class Settings(BaseModel):
     nas_roots: list[str] = Field(default_factory=lambda: ["/share", "/media"])
     nas_smb_enabled: bool = False
     nas_smb_host: str = "192.168.0.33"
-    nas_smb_shares: list[str] = Field(default_factory=list)
+    nas_smb_shares: list[str] = Field(default_factory=lambda: ["home"])
     nas_smb_username: str = ""
     nas_smb_password: str = ""
     nas_smb_port: int = 445

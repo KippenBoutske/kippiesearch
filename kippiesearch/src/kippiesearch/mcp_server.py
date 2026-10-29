@@ -26,11 +26,11 @@ def build_mcp(
     mcp = MCPServer(
         "KippieSearch",
         instructions=(
-            "Lokale semantic search over NAS- en schoolbestanden van Jens. "
+            "Lokale semantic search over NAS- en schoolbestanden. "
             "Gebruik search voor vragen, list_sources voor overzicht, "
             "get_file_content voor de tekst van een geïndexeerd pad."
         ),
-        version="0.1.0",
+        version="0.1.1",
     )
 
     @mcp.tool()

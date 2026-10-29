@@ -1,6 +1,6 @@
 # KippieSearch
 
-Lokale, privacy-first **semantic search** voor Jens. Draait als **Home Assistant add-on** op een Raspberry Pi 5 (8 GB, aarch64, HA OS): één container, één proces (FastAPI + web-UI + REST + MCP + scheduler). Bestanden blijven op je LAN. Embeddings gebeuren op de Pi, niet in de cloud.
+Lokale, privacy-first **semantic search**. Draait als **Home Assistant add-on** op een Raspberry Pi 5 (8 GB, aarch64, HA OS): één container, één proces (FastAPI + web-UI + REST + MCP + scheduler). Bestanden blijven op je LAN. Embeddings gebeuren op de Pi, niet in de cloud.
 
 Poort **8765** (configureerbaar; vrij ten opzichte van HA 8123, Radarr 7878, Sonarr 8989, qBittorrent 8082, Jellyfin 8096, Portainer 9000, Fladder 8098). Ingress in Home Assistant zit erbij.
 
@@ -62,27 +62,27 @@ Persistent op de Pi (`/data` van de add-on): `lancedb/`, `models/` (EmbeddingGem
 
 ## Installatie op Home Assistant OS
 
-HA OS heeft geen vrije Docker Compose en geen systemd-units voor extra stacks. Daarom is dit een **custom add-on**.
+HA OS heeft geen vrije Docker Compose en geen systemd-units voor extra stacks. Daarom is dit een **custom add-on**. Deze GitHub-repo is public; Supervisor kan hem dus als add-on-repository clonen.
 
-### Variant A — lokale add-on (werkt voor deze private repo)
+### Primair — custom repository (aanbevolen)
 
-Supervisor kan een **private** GitHub-repo niet zomaar clonen (geen token in de add-on store). Kopieer de add-on-map naar `/addons`:
+1. HA → Instellingen → Add-ons → Add-on Store → ⋮ (rechtsboven) → **Repositories**.
+2. Voeg toe: `https://github.com/KippenBoutske/kippiesearch`
+3. Ververs de store. **KippieSearch** verschijnt in de lijst.
+4. Installeren (eerste build op de Pi duurt even: Python-deps + later het model).
+5. **Configuratie:** zet een `api_token`, koppel de NAS (zie hieronder) en eventueel it's learning, daarna **Start**.
+6. Sidebar **KippieSearch** (ingress) of `http://<pi-ip>:8765/`.
+
+De repository-root bevat `repository.yaml`; de add-on zelf staat in `kippiesearch/` (`config.yaml` + `Dockerfile`). Dat is het formaat dat de Supervisor verwacht.
+
+### Alternatief — lokale add-on via `/addons`
+
+Handig voor ontwikkeling of als de store de repo niet pakt:
 
 1. Installeer de **Samba**- of **SSH**-add-on in HA.
-2. Samba: share `addons` (of via SSH: `/addons`).
-3. Kopieer de map `kippiesearch/` uit deze repo **als** `/addons/kippiesearch/` (daarin moeten `config.yaml` en `Dockerfile` staan).
-4. HA → Instellingen → Add-ons → ⋮ (rechtsboven) → **Check for updates** / ververs.
-5. Onder **Local add-ons** verschijnt KippieSearch. Installeer (eerste build op de Pi duurt even: Python-deps + later het model).
-6. Open **Configuratie**, zet minstens een `api_token`, NAS-paden en eventueel it's learning, daarna **Start**.
-7. Sidebar **KippieSearch** (ingress) of `http://<pi-ip>:8765/`.
-
-### Variant B — custom repository (alleen als de repo public is, of later met toegang)
-
-1. HA → Instellingen → Add-ons → Add-on Store → ⋮ → **Repositories**.
-2. URL: `https://github.com/KippenBoutske/kippiesearch`
-3. Add-on installeren zoals hierboven.
-
-Zonder public repo of GitHub-app-token faalt variant B. Gebruik A.
+2. Kopieer de map `kippiesearch/` uit deze repo **als** `/addons/kippiesearch/` (daarin moeten `config.yaml` en `Dockerfile` staan).
+3. HA → Instellingen → Add-ons → ⋮ → **Check for updates** / ververs.
+4. Onder **Local add-ons** verschijnt KippieSearch. Verder hetzelfde als hierboven.
 
 ### Eerste start
 
@@ -90,15 +90,27 @@ Zonder public repo of GitHub-app-token faalt variant B. Gebruik A.
 - Eerste keer met `embedder: onnx` downloadt EmbeddingGemma 2 q4 naar `/data/models` (honderden MB, eenmalig, daarna offline).
 - Daarna **Status → Index opnieuw**.
 
-## NAS-koppeling (Synology `192.168.0.33`)
+## NAS-koppeling (Synology `home` op `192.168.0.33`)
 
-**Voorkeur (HA OS):** add-ons kunnen niet zelf mounten. Koppel de NAS in HA:
+Doel: de persoonlijke Synology-**home**-share indexeren. Die share mappt naar de homemap van de SMB-gebruiker waarmee je inlogt. Wachtwoorden horen alleen in de HA-opties, nooit in git.
 
-1. Instellingen → Systeem → **Opslag** → netwerkopslag toevoegen (SMB naar `192.168.0.33`, shares naar keuze).
-2. HA mount dat onder `/share` en/of `/media`.
-3. In KippieSearch: `nas_roots` = `/share` en `/media` (standaard). Alleen lezen.
+### Voorkeur — HA-netwerkopslag (add-on mount `/share`)
 
-**Fallback:** `nas_smb_enabled: true`, host `192.168.0.33`, sharenamen (lijst), gebruikersnaam + wachtwoord (`password`-optie). De add-on leest via `smbprotocol` en cachet naar `/data/nas-cache`. Shares zijn nog onbekend: vul ze in zodra je de namen weet (`homes`, `documents`, …).
+Een add-on kan op HA OS niet zelf SMB-mounten. Laat Home Assistant dat doen:
+
+1. HA → Instellingen → Systeem → **Opslag** → **netwerkopslag toevoegen**.
+2. Server: `192.168.0.33`
+3. Protocol: **Share** (SMB/CIFS)
+4. Share: `home`
+5. Gebruikersnaam + wachtwoord van dat Synology-account (in HA, niet in deze repo).
+6. Kies een naam, bijvoorbeeld `home`. HA mount de share dan onder `/share/<naam>` (dus `/share/home` als je hem `home` noemt).
+7. In KippieSearch: zet `nas_roots` op dat pad, bijvoorbeeld `/share/home`. Standaard staan `/share` en `/media` aan; `/share` indexeert alles wat HA daar neerzet, `/share/home` beperkt het tot die ene mount.
+
+Alleen lezen is genoeg.
+
+### Alternatief — SMB-fallback in de add-on
+
+Als er geen HA-mount is: `nas_smb_enabled: true`, vul `nas_smb_username` en `nas_smb_password` in. Defaults: host `192.168.0.33`, share `home`, poort 445. De add-on leest via `smbprotocol` (read-only) en cachet naar `/data/nas-cache`. Zonder gebruikersnaam gebeurt er niets.
 
 ## Credentials veilig zetten
 
@@ -188,7 +200,7 @@ Houd headroom voor Home Assistant. Begin met de defaults.
 |----------|--------|
 | Add-on bouwt niet | Logs van de Supervisor-build; aarch64 + netwerk naar PyPI/GHCR. |
 | Model-download faalt | Eerste start heeft uitgaand HTTPS naar Hugging Face nodig; daarna offline. |
-| Geen NAS-hits | HA netwerkopslag gemount? Pad in `nas_roots`? Of SMB-shares + user? |
+| Geen NAS-hits | HA-netwerkopslag `home` gemount? `nas_roots` = `/share/<naam>`? Of SMB aan, share `home`, user+wachtwoord ingevuld? |
 | it's learning-fout | URL, user/wachtwoord, geen SSO; kijk `/api/status` last_error (geen secrets in logs). |
 | 401 op API/MCP | `Authorization: Bearer …`; ingress slaat token over. |
 | HA wordt traag | `onnx_threads=1`, grotere `throttle_s`, kleinere `batch_size`. |

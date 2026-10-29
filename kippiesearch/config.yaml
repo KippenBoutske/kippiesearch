@@ -1,5 +1,5 @@
 name: KippieSearch
-version: "0.1.0"
+version: "0.1.1"
 slug: kippiesearch
 description: Lokale privacy-first semantic search + MCP-server voor NAS en it's learning
 url: https://github.com/KippenBoutske/kippiesearch
@@ -44,7 +44,8 @@ options:
   nas_smb_enabled: false
   nas_smb_host: "192.168.0.33"
   nas_smb_port: 445
-  nas_smb_shares: []
+  nas_smb_shares:
+    - home
   nas_smb_username: ""
   nas_smb_password: ""
   itslearning_enabled: false

@@ -7,7 +7,7 @@ configuration:
     description: Bearer token for LAN access to API and MCP. Home Assistant ingress stays open. Leave empty to disable auth (not recommended).
   nas_roots:
     name: NAS / share folders
-    description: Paths mounted by Home Assistant network storage (Settings → System → Storage), typically /share and /media.
+    description: Paths from Home Assistant network storage. After adding share "home" (Settings → System → Storage, protocol Share) it appears as /share/<name>, e.g. /share/home.
   nas_smb_enabled:
     name: Enable SMB fallback
     description: Read Synology shares directly when HA mounts are empty. Read-only.
@@ -17,11 +17,13 @@ configuration:
     name: SMB port
   nas_smb_shares:
     name: SMB share names
-    description: Share names on the NAS, e.g. homes, documents.
+    description: NAS share names. Default is home (Synology personal home folder of the logged-in user).
   nas_smb_username:
     name: SMB username
+    description: Leave empty until you use the SMB fallback. Do not put credentials in git.
   nas_smb_password:
     name: SMB password
+    description: Store only in this add-on option, never in the repository.
   itslearning_enabled:
     name: Enable it's learning sync
   itslearning_url:
