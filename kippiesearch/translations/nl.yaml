@@ -1,0 +1,66 @@
+configuration:
+  log_level:
+    name: Logniveau
+    description: Gestructureerde JSON-logs (wachtwoorden/tokens worden weggefilterd).
+  api_token:
+    name: API-/MCP-token
+    description: Bearer-token voor LAN-toegang tot API en MCP. Home Assistant ingress blijft open. Leeg = geen auth (niet aanbevolen).
+  nas_roots:
+    name: NAS-/share-mappen
+    description: Paden van Home Assistant netwerkopslag (Instellingen → Systeem → Opslag), meestal /share en /media.
+  nas_smb_enabled:
+    name: SMB-fallback inschakelen
+    description: Synology-shares rechtstreeks lezen als HA-mounts leeg zijn. Alleen lezen.
+  nas_smb_host:
+    name: SMB-host
+  nas_smb_port:
+    name: SMB-poort
+  nas_smb_shares:
+    name: SMB-sharenamen
+    description: Namen van shares op de NAS, bijvoorbeeld homes, documents.
+  nas_smb_username:
+    name: SMB-gebruikersnaam
+  nas_smb_password:
+    name: SMB-wachtwoord
+  itslearning_enabled:
+    name: it's learning-sync inschakelen
+  itslearning_url:
+    name: it's learning-URL
+  itslearning_organisation:
+    name: School-/organisatienaam
+  itslearning_username:
+    name: it's learning-gebruikersnaam
+  itslearning_password:
+    name: it's learning-wachtwoord
+  itslearning_rate_limit_s:
+    name: it's learning pauze (seconden)
+  itslearning_cron:
+    name: Dagelijkse schoolsync (cron)
+  nas_cron:
+    name: NAS-rescan (cron)
+  embedder:
+    name: Embedder
+    description: onnx = EmbeddingGemma 2 q4 (eenmalig downloaden naar /data). hash = tests/zonder model.
+  embedding_dim:
+    name: Vectorgrootte (MRL)
+  max_seq_length:
+    name: Max. tokens per chunk
+  onnx_threads:
+    name: ONNX CPU-threads
+  chunk_chars:
+    name: Chunkgrootte (tekens)
+  chunk_overlap:
+    name: Chunk-overlap
+  batch_size:
+    name: Embedding-batchgrootte
+  max_file_mb:
+    name: Max. bestandsgrootte (MB)
+  throttle_s:
+    name: Pauze tussen bestanden (s)
+  exclude_globs:
+    name: Uitsluit-globs
+  ocr_enabled:
+    name: OCR voor afbeeldingen
+    description: Standaard uit (RAM). Afbeeldingen worden overgeslagen.
+network:
+  8765/tcp: Web-UI, REST-API en MCP (/mcp)

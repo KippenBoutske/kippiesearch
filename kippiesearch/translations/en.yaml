@@ -1,0 +1,66 @@
+configuration:
+  log_level:
+    name: Log level
+    description: Structured JSON logs (secrets are redacted).
+  api_token:
+    name: API / MCP token
+    description: Bearer token for LAN access to API and MCP. Home Assistant ingress stays open. Leave empty to disable auth (not recommended).
+  nas_roots:
+    name: NAS / share folders
+    description: Paths mounted by Home Assistant network storage (Settings → System → Storage), typically /share and /media.
+  nas_smb_enabled:
+    name: Enable SMB fallback
+    description: Read Synology shares directly when HA mounts are empty. Read-only.
+  nas_smb_host:
+    name: SMB host
+  nas_smb_port:
+    name: SMB port
+  nas_smb_shares:
+    name: SMB share names
+    description: Share names on the NAS, e.g. homes, documents.
+  nas_smb_username:
+    name: SMB username
+  nas_smb_password:
+    name: SMB password
+  itslearning_enabled:
+    name: Enable it's learning sync
+  itslearning_url:
+    name: it's learning URL
+  itslearning_organisation:
+    name: School / organisation name
+  itslearning_username:
+    name: it's learning username
+  itslearning_password:
+    name: it's learning password
+  itslearning_rate_limit_s:
+    name: it's learning delay (seconds)
+  itslearning_cron:
+    name: Daily school sync (cron)
+  nas_cron:
+    name: NAS rescan (cron)
+  embedder:
+    name: Embedder
+    description: onnx = EmbeddingGemma 2 q4 (download once to /data). hash = tests/no-model.
+  embedding_dim:
+    name: Vector size (MRL)
+  max_seq_length:
+    name: Max tokens per chunk
+  onnx_threads:
+    name: ONNX CPU threads
+  chunk_chars:
+    name: Chunk size (characters)
+  chunk_overlap:
+    name: Chunk overlap
+  batch_size:
+    name: Embedding batch size
+  max_file_mb:
+    name: Max file size (MB)
+  throttle_s:
+    name: Pause between files (s)
+  exclude_globs:
+    name: Exclude globs
+  ocr_enabled:
+    name: OCR for images
+    description: Off by default (RAM). Images are skipped.
+network:
+  8765/tcp: Web UI, REST API and MCP (/mcp)

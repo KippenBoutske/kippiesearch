@@ -1,0 +1,26 @@
+# Lokaal testen op een gewone machine (niet nodig op HA OS).
+#   docker compose up --build
+# Data blijft in het volume; fixtures worden als /share gemount.
+services:
+  kippiesearch:
+    build:
+      context: ./kippiesearch
+      dockerfile: Dockerfile
+      args:
+        BUILD_ARCH: amd64
+        BUILD_VERSION: "0.1.0"
+    image: kippiesearch:local
+    ports:
+      - "8765:8765"
+    environment:
+      KIPPIESEARCH_EMBEDDER: hash
+      KIPPIESEARCH_LOG_LEVEL: info
+      KIPPIESEARCH_NAS_ROOTS: /share
+      KIPPIESEARCH_AUTH_DISABLED: "true"
+    volumes:
+      - kippiesearch-data:/data
+      - ./fixtures/corpus:/share:ro
+    restart: unless-stopped
+
+volumes:
+  kippiesearch-data:

@@ -1,0 +1,99 @@
+name: KippieSearch
+version: "0.1.0"
+slug: kippiesearch
+description: Lokale privacy-first semantic search + MCP-server voor NAS en it's learning
+url: https://github.com/KippenBoutske/kippiesearch
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+stage: experimental
+homeassistant: "2024.1.0"
+ingress: true
+ingress_port: 8765
+ingress_stream: true
+panel_icon: mdi:magnify
+panel_title: KippieSearch
+panel_admin: false
+webui: "http://[HOST]:[PORT:8765]/"
+watchdog: "http://[HOST]:[PORT:8765]/health"
+ports:
+  8765/tcp: 8765
+ports_description:
+  8765/tcp: Web UI, REST API en MCP (Streamable HTTP op /mcp)
+map:
+  - type: share
+    read_only: true
+  - type: media
+    read_only: true
+  - type: ssl
+    read_only: true
+timeout: 60
+backup_exclude:
+  - models/*
+  - nas-cache/*
+  - "*.lancedb/_indices/**"
+options:
+  log_level: info
+  api_token: ""
+  nas_roots:
+    - /share
+    - /media
+  nas_smb_enabled: false
+  nas_smb_host: "192.168.0.33"
+  nas_smb_port: 445
+  nas_smb_shares: []
+  nas_smb_username: ""
+  nas_smb_password: ""
+  itslearning_enabled: false
+  itslearning_url: "https://citadelcollege.itslearning.com"
+  itslearning_organisation: "Citadel College"
+  itslearning_username: ""
+  itslearning_password: ""
+  itslearning_rate_limit_s: 0.75
+  itslearning_cron: "0 3 * * *"
+  nas_cron: "0 */6 * * *"
+  embedder: onnx
+  embedding_dim: 256
+  max_seq_length: 512
+  onnx_threads: 2
+  chunk_chars: 1800
+  chunk_overlap: 220
+  batch_size: 4
+  max_file_mb: 32
+  throttle_s: 0.05
+  exclude_globs: "**/.git/**,**/node_modules/**,**/@eaDir/**,**/#recycle/**,**/*.mkv,**/*.mp4,**/*.iso"
+  ocr_enabled: false
+schema:
+  log_level: list(debug|info|warning|error)
+  api_token: password
+  nas_roots:
+    - str
+  nas_smb_enabled: bool
+  nas_smb_host: str
+  nas_smb_port: port
+  nas_smb_shares:
+    - str
+  nas_smb_username: str
+  nas_smb_password: password
+  itslearning_enabled: bool
+  itslearning_url: url
+  itslearning_organisation: str
+  itslearning_username: str
+  itslearning_password: password
+  itslearning_rate_limit_s: float
+  itslearning_cron: str
+  nas_cron: str
+  embedder: list(onnx|hash)
+  embedding_dim: list(128|256|512|768)
+  max_seq_length: int(64,2048)
+  onnx_threads: int(1,8)
+  chunk_chars: int(200,8000)
+  chunk_overlap: int(0,2000)
+  batch_size: int(1,32)
+  max_file_mb: float
+  throttle_s: float
+  exclude_globs: str
+  ocr_enabled: bool
