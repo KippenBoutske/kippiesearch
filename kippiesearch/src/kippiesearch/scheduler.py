@@ -41,6 +41,8 @@ def start_scheduler(
             log.info("skip_nas_job_busy")
             return
         refs: list[FileRef] = list(iter_all_local(settings))
+        if settings.nas_smb_enabled and not smb_available(settings):
+            log.info("smb_skipped", reason=settings.nas_smb_skip_reason())
         if smb_available(settings):
             try:
                 from kippiesearch.nas import cache_smb_file
@@ -70,6 +72,9 @@ def start_scheduler(
     def school_job() -> None:
         if status.indexing or status.syncing:
             log.info("skip_school_job_busy")
+            return
+        if not syncer.enabled():
+            log.info("itslearning_skipped", reason=settings.itslearning_skip_reason())
             return
         result = syncer.sync()
         if result.get("ok"):

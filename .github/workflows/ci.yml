@@ -33,7 +33,7 @@ jobs:
             --platform linux/amd64 \
             -f kippiesearch/Dockerfile \
             --build-arg BUILD_ARCH=amd64 \
-            --build-arg BUILD_VERSION=0.1.1 \
+            --build-arg BUILD_VERSION=0.1.2 \
             kippiesearch \
             --load \
             -t kippiesearch:ci-amd64
@@ -64,6 +64,6 @@ jobs:
             --platform linux/arm64 \
             -f kippiesearch/Dockerfile \
             --build-arg BUILD_ARCH=aarch64 \
-            --build-arg BUILD_VERSION=0.1.1 \
+            --build-arg BUILD_VERSION=0.1.2 \
             kippiesearch \
             -t kippiesearch:ci-arm64

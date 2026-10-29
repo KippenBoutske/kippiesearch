@@ -30,7 +30,7 @@ def build_mcp(
             "Gebruik search voor vragen, list_sources voor overzicht, "
             "get_file_content voor de tekst van een geïndexeerd pad."
         ),
-        version="0.1.1",
+        version="0.1.2",
     )
 
     @mcp.tool()

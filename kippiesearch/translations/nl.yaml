@@ -13,11 +13,12 @@ configuration:
     description: Synology-shares rechtstreeks lezen als HA-mounts leeg zijn. Alleen lezen.
   nas_smb_host:
     name: SMB-host
+    description: LAN-adres van de NAS, bijvoorbeeld 192.168.1.x. Leeg = SMB uit.
   nas_smb_port:
     name: SMB-poort
   nas_smb_shares:
     name: SMB-sharenamen
-    description: Namen van shares op de NAS. Default is home (Synology persoonlijke homemap van de ingelogde gebruiker).
+    description: Namen van shares op de NAS, bijvoorbeeld home of documents. Leeg = SMB uit.
   nas_smb_username:
     name: SMB-gebruikersnaam
     description: Leeg tot je de SMB-fallback gebruikt. Geen wachtwoorden in git.
@@ -28,8 +29,10 @@ configuration:
     name: it's learning-sync inschakelen
   itslearning_url:
     name: it's learning-URL
+    description: Bijvoorbeeld https://<school>.itslearning.com. Leeg = sync uit.
   itslearning_organisation:
     name: School-/organisatienaam
+    description: Optioneel, alleen ter herkenning. Geen default.
   itslearning_username:
     name: it's learning-gebruikersnaam
   itslearning_password:

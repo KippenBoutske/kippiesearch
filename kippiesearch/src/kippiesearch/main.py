@@ -78,6 +78,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.ctx = ctx
         ctx.scheduler = start_scheduler(settings, ctx.indexer, ctx.syncer, ctx.store, ctx.status)
         log.info("kippiesearch_started", version=__version__, port=settings.port)
+        log.info("source_notice", source="smb", message=settings.nas_smb_skip_reason() or "SMB-fallback klaar")
+        log.info(
+            "source_notice",
+            source="itslearning",
+            message=settings.itslearning_skip_reason() or "it's learning-sync klaar",
+        )
         try:
             async with mcp.session_manager.run():
                 yield
@@ -126,15 +132,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "nas_roots": settings.nas_roots,
             "smb": {
                 "enabled": settings.nas_smb_enabled,
+                "ready": settings.nas_smb_ready(),
                 "host": settings.nas_smb_host,
                 "shares": settings.nas_smb_shares,
                 "available": smb_available(settings),
+                "notice": settings.nas_smb_skip_reason(),
             },
             "itslearning": {
                 "enabled": settings.itslearning_enabled,
+                "ready": settings.itslearning_ready(),
                 "url": settings.itslearning_url,
                 "organisation": settings.itslearning_organisation,
                 "dir": str(settings.itslearning_dir),
+                "notice": settings.itslearning_skip_reason(),
             },
             "stats": stats,
         }
@@ -146,6 +156,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         snap["version"] = __version__
         snap["auth_required"] = settings.require_auth()
         snap["port"] = settings.port
+        snap["notices"] = [
+            note
+            for note in (settings.nas_smb_skip_reason(), settings.itslearning_skip_reason())
+            if note
+        ]
         return snap
 
     @api.post("/api/reindex")

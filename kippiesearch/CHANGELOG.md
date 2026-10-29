@@ -1,9 +1,14 @@
 # Changelog
 
+## 0.1.2
+
+- Geen persoonlijke defaults meer: SMB-host, shares, it's learning-URL en schoolnaam zijn leeg tot je ze invult
+- Ontbrekende host/URL/credentials schakelen die bron uit (status + logs)
+
 ## 0.1.1
 
-- Default SMB-share is Synology `home` op `192.168.0.33` (user/wachtwoord blijven leeg)
-- README: publieke add-on-repository als primaire installatie; HA-netwerkopslag-route voor share `home`
+- SMB-share-opties en HA-netwerkopslag-documentatie
+- Publieke add-on-repository als primaire installatie
 
 ## 0.1.0
 
